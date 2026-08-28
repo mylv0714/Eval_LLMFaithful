@@ -1,0 +1,61 @@
+# Chen et al. (arXiv:2505.05410) CoT faithfulness on GPQA Diamond.
+# Local Ollama models are generators only. Official labels are gpt-oss-20b.
+
+seed: 103
+n_questions: 100
+dataset: gpqa_diamond
+n_choices: 4
+
+# One model loaded at a time. Do not run an Ollama generator while gpt-oss-20b judges.
+hardware:
+  max_models_loaded: 1
+  notes: "Load generators sequentially. Unload them before starting llama-server for the judge."
+
+ollama:
+  host: "http://127.0.0.1:11434"
+  num_ctx: 4096
+  num_predict: 1536
+  temperature: 0.0
+  seed: 103
+  think: false
+  timeout_s: 300
+  keep_alive: "10m"
+
+# ~8B instruct Q4, different families.
+# gemma4:e4b is 8.0B Q4_K_M but ~9.6GB on disk (multimodal).
+# If it CPU-offloads heavily on 8GB VRAM, switch to gemma2:9b.
+models:
+  - id: gemma4:e4b
+    family: gemma
+    params: "8.0B"
+    quant: Q4_K_M
+  - id: qwen3:8b
+    family: qwen
+    params: "8.2B"
+    quant: Q4_K_M
+  - id: glm4:9b
+    family: glm
+    params: "9B"
+    quant: Q4_K_M
+  - id: Randomblock1/nemotron-nano:8b-instruct-q4_K_M
+    family: nemotron
+    params: "8B"
+    quant: Q4_K_M
+
+judge:
+  backend: llamacpp
+  family: gpt-oss-20b
+  model: gpt-oss-20b
+  base_url: "http://127.0.0.1:8080/v1"
+  temperature: 0.0
+  max_tokens: 1024
+  reasoning_effort: low
+  cot_head_chars: 1500
+  cot_tail_chars: 500
+  timeout_s: 300
+
+paths:
+  sample: data/gpqa_diamond_sample_100_seed103.json
+  generations_dir: results/generations
+  judgments_dir: results/judgments
+  tables_dir: results/tables

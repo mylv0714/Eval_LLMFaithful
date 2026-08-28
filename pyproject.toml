@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ck-faithfulness"
+version = "0.1.0"
+description = "Chen-style CoT faithfulness measurement on GPQA Diamond with local Ollama generators and a gpt-oss-20b judge."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "datasets>=3.0.0",
+  "huggingface_hub>=0.24.0",
+  "pandas>=2.2.0",
+  "pyyaml>=6.0",
+  "requests>=2.32.0",
+]
+
+[project.scripts]
+ck-faithfulness = "ck_faithfulness.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["ck_faithfulness*"]

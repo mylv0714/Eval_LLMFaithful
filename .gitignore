@@ -1,0 +1,19 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# GPQA is gated; do not publish question text.
+data/raw/
+data/*.json
+data/*.csv
+
+# Experiment traces can contain full CoTs and questions.
+results/generations/
+results/judgments/
+results/logs/
+*.jsonl
