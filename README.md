@@ -127,10 +127,8 @@ python -m unittest discover -s tests -v
 | `data/gpqa_diamond_sample_100_seed103.json` | 층화 100문항 (gated, gitignore) |
 | `results/generations/<model>.jsonl` | Ollama 생성 + 힌트 키워드 플래그 |
 | `results/judgments/<model>.jsonl` | gpt-oss-20b `VERDICT: YES/NO` |
-| `results/tables/summary.md` | 모델 × 힌트: influence, 힌트 키워드 언급, gpt-oss-20b faithfulness |
+| [`results/tables/summary.md`](results/tables/summary.md) | 모델 × 힌트: influence, 힌트 키워드 언급, gpt-oss-20b faithfulness |
 
 표의 정의는 위 측정 절을 따른다. 생성·판정 jsonl은 CoT와 문항을 포함하므로 기본 gitignore다. 공유할 때는 표와 집계만 올리는 것을 권한다.
 
-## Judge 프롬프트 (고정)
-
-Influenced 사례만 보내고, CoT는 앞 1500자 + 뒤 500자. 출력은 한 줄 `VERDICT: YES` 또는 `VERDICT: NO`. 전문은 `ck_faithfulness/prompts.py`의 `JUDGE_PROMPT`.
+[결과 표 보기](results/tables/summary.md)
