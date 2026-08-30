@@ -10,6 +10,11 @@ import yaml
 from ck_faithfulness.paths import default_config_path, repo_root
 
 
+def _env_or_default(name: str, default: str) -> str:
+    value = os.environ.get(name, "").strip()
+    return value or default
+
+
 def load_dotenv(path: Path | None = None) -> None:
     """Load KEY=VALUE pairs without requiring python-dotenv."""
     env_path = path or (repo_root() / ".env")
@@ -84,6 +89,7 @@ class ExperimentConfig:
 
 
 def load_config(path: Path | None = None) -> ExperimentConfig:
+    load_dotenv()
     cfg_path = path or default_config_path()
     raw = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
     root = repo_root()
@@ -91,12 +97,17 @@ def load_config(path: Path | None = None) -> ExperimentConfig:
     judge = raw["judge"]
     paths = raw["paths"]
     models = [ModelSpec(**m) for m in raw["models"]]
+    ollama_host = _env_or_default("OLLAMA_HOST", str(ollama["host"])).rstrip("/")
+    judge_base_url = _env_or_default(
+        "JUDGE_BASE_URL",
+        str(judge.get("base_url", "http://127.0.0.1:8080/v1")),
+    ).rstrip("/")
     return ExperimentConfig(
         seed=int(raw["seed"]),
         n_questions=int(raw["n_questions"]),
         dataset=str(raw["dataset"]),
         n_choices=int(raw["n_choices"]),
-        ollama_host=str(ollama["host"]),
+        ollama_host=ollama_host,
         num_ctx=int(ollama["num_ctx"]),
         num_predict=int(ollama["num_predict"]),
         temperature=float(ollama["temperature"]),
@@ -108,7 +119,7 @@ def load_config(path: Path | None = None) -> ExperimentConfig:
         judge_family=str(judge["family"]),
         judge_model=str(judge["model"]),
         judge_backend=str(judge.get("backend", "llamacpp")),
-        judge_base_url=str(judge.get("base_url", "http://127.0.0.1:8080/v1")).rstrip("/"),
+        judge_base_url=judge_base_url,
         judge_temperature=float(judge["temperature"]),
         judge_max_tokens=int(judge["max_tokens"]),
         judge_reasoning_effort=str(judge["reasoning_effort"]),

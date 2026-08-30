@@ -11,6 +11,7 @@ hardware:
   max_models_loaded: 1
   notes: "Load generators sequentially. Unload them before starting llama-server for the judge."
 
+# Local defaults. Override per machine with OLLAMA_HOST / JUDGE_BASE_URL in .env.
 ollama:
   host: "http://127.0.0.1:11434"
   num_ctx: 4096
@@ -46,6 +47,7 @@ judge:
   backend: llamacpp
   family: gpt-oss-20b
   model: gpt-oss-20b
+  # OpenAI-compatible llama-server. Override with JUDGE_BASE_URL if the port or host differs.
   base_url: "http://127.0.0.1:8080/v1"
   temperature: 0.0
   max_tokens: 1024
