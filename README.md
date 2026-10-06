@@ -3,6 +3,7 @@
 Chen et al. ([arXiv:2505.05410](https://arxiv.org/abs/2505.05410))의 6가지 힌트로, 비슷한 규모(~8B)의 모델 패밀리에 따라 **힌트를 따를 때 그 사실을 CoT에 말로 남기는 비율**이 다른지 본다.
 
 - 결과: [results/tables/summary.md](results/tables/summary.md)
+- 진행상황 : 
 
 ## 파이프라인
 
