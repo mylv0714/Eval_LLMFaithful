@@ -7,6 +7,8 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 
+docs/project_review.md
+
 # GPQA is gated; do not publish question text.
 data/raw/
 data/*.json

@@ -1,52 +1,74 @@
+"""Stage 2: label influenced cases with gpt-oss-20b on a local llama-server (official labels)."""
+
 from __future__ import annotations
 
 import time
 from datetime import datetime, timezone
-from pathlib import Path
+from typing import Any
+
+import requests
 
 from ck_faithfulness.config import ExperimentConfig
-from ck_faithfulness.jsonl_io import append_jsonl, completed_keys, load_jsonl
-from ck_faithfulness.llamacpp_judge import LlamaCppJudge, llamacpp_reachable
-from ck_faithfulness.metrics import influenced_cases
-from ck_faithfulness.parse import truncate_cot
+from ck_faithfulness.data import append_jsonl, load_generations, load_jsonl
+from ck_faithfulness.parse import parse_verdict
+from ck_faithfulness.prompts import case_input_sha, judge_messages
+from ck_faithfulness.report import influenced_cases
 
 
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def generation_paths(cfg: ExperimentConfig, model_ids: list[str] | None) -> list[Path]:
-    if model_ids:
-        return [cfg.generation_path(mid) for mid in model_ids]
-    return [cfg.generation_path(spec.id) for spec in cfg.models]
-
-
-def collect_generation_rows(cfg: ExperimentConfig, model_ids: list[str] | None) -> list[dict]:
-    rows = []
-    for path in generation_paths(cfg, model_ids):
-        rows.extend(load_jsonl(path))
-    return rows
-
-
-def pending_judgments(cfg: ExperimentConfig, model_ids: list[str] | None) -> list[dict]:
-    rows = collect_generation_rows(cfg, model_ids)
-    cases = influenced_cases(rows)
-    pending = []
-    for case in cases:
-        path = cfg.judgment_path(case["model"])
-        done = completed_keys(path)
-        if (case["model"], case["question_id"], case["hint_type"]) in done:
+def judge_reachable(base_url: str, timeout_s: float = 5) -> bool:
+    root = base_url.removesuffix("/v1")
+    for url in (f"{root}/health", f"{root}/v1/models"):
+        try:
+            if requests.get(url, timeout=timeout_s).status_code < 500:
+                return True
+        except requests.RequestException:
             continue
-        pending.append(case)
+    return False
+
+
+def message_text(message: dict[str, Any] | None) -> str:
+    """Final content first, then gpt-oss reasoning, so the content's verdict wins."""
+    message = message or {}
+    parts = [message.get(k) for k in ("content", "reasoning_content", "reasoning")]
+    return "\n".join(p for p in parts if isinstance(p, str) and p.strip())
+
+
+def call_judge(cfg: ExperimentConfig, messages: list[dict[str, str]]) -> dict[str, Any]:
+    url = f"{cfg.judge_base_url}/chat/completions"
+    payload: dict[str, Any] = {
+        "model": cfg.judge_model,
+        "temperature": cfg.judge_temperature,
+        "max_tokens": cfg.judge_max_tokens,
+        "messages": messages,
+        "chat_template_kwargs": {"reasoning_effort": cfg.judge_reasoning_effort},
+    }
+    r = requests.post(url, json=payload, timeout=cfg.judge_timeout_s)
+    if r.status_code == 400 and "chat_template_kwargs" in (r.text or "").lower():
+        payload.pop("chat_template_kwargs")  # older llama-server builds reject the field
+        r = requests.post(url, json=payload, timeout=cfg.judge_timeout_s)
+    if r.status_code >= 400:
+        raise RuntimeError(f"llama.cpp API {r.status_code}: {r.text[:800]}")
+    data = r.json()
+    text = message_text(((data.get("choices") or [{}])[0]).get("message"))
+    verdict = parse_verdict(text)
+    if verdict is None:
+        raise RuntimeError(f"Unparseable judge output: {text[:800]!r}")
+    return {"verdict": verdict, "raw_judge": text, "usage": data.get("usage") or {}}
+
+
+def pending_judgments(cfg: ExperimentConfig, model_ids: list[str] | None) -> list[dict[str, Any]]:
+    """Influenced cases with no verdict for their current judge input."""
+    judged: set[tuple] = set()
+    for model in model_ids or [m.id for m in cfg.models]:
+        for row in load_jsonl(cfg.judgment_path(model)):
+            if row.get("verdict") and not row.get("error"):
+                judged.add((row["model"], row["question_id"], row["hint_type"], row.get("judge_input_sha")))
+    pending = []
+    for case in influenced_cases(load_generations(cfg, model_ids)):
+        sha = case_input_sha(cfg, case)
+        if (case["model"], case["question_id"], case["hint_type"], sha) not in judged:
+            pending.append({**case, "judge_input_sha": sha})
     return pending
-
-
-def judge_available(cfg: ExperimentConfig) -> bool:
-    return llamacpp_reachable(cfg.judge_base_url)
-
-
-def build_judge(cfg: ExperimentConfig) -> LlamaCppJudge:
-    return LlamaCppJudge(cfg)
 
 
 def run_judge(
@@ -56,19 +78,14 @@ def run_judge(
     limit: int | None = None,
     dry_run: bool = False,
 ) -> dict[str, int]:
-    pending = pending_judgments(cfg, model_ids)
-    if limit is not None:
-        pending = pending[:limit]
+    pending = pending_judgments(cfg, model_ids)[:limit]
     stats = {"pending": len(pending), "written": 0, "errors": 0}
     if not pending:
         print("[judge] nothing to judge (no influenced cases, or all checkpointed)")
         return stats
-    if dry_run or not judge_available(cfg):
+    if dry_run or not judge_reachable(cfg.judge_base_url):
         reason = "dry-run" if dry_run else f"llama.cpp server down at {cfg.judge_base_url}"
-        print(
-            f"[judge] {reason}: {len(pending)} influenced cases waiting. "
-            f"Official labels use {cfg.judge_family} via llama.cpp."
-        )
+        print(f"[judge] {reason}: {len(pending)} influenced cases waiting for {cfg.judge_model}.")
         for case in pending[:10]:
             print(
                 f"  - {case['model']} {case['question_id']} {case['hint_type']} "
@@ -78,25 +95,15 @@ def run_judge(
             print(f"  ... {len(pending) - 10} more")
         return stats
 
-    judge = build_judge(cfg)
     t0 = time.time()
-    with judge:
-        for i, case in enumerate(pending, start=1):
-            cot = truncate_cot(case["raw_response"], cfg.cot_head_chars, cfg.cot_tail_chars)
-            path = cfg.judgment_path(case["model"])
-            try:
-                result = judge.classify(case["hint_type"], case["target"], cot)
-                error = None
-            except Exception as exc:  # noqa: BLE001
-                result = {
-                    "verdict": None,
-                    "raw_judge": "",
-                    "judge_model": cfg.judge_model,
-                    "usage": {},
-                    "backend": cfg.judge_backend,
-                }
-                error = str(exc)
-            row = {
+    for i, case in enumerate(pending, start=1):
+        try:
+            result, error = call_judge(cfg, judge_messages(cfg, case)), None
+        except Exception as exc:  # noqa: BLE001 - persist the failure and continue
+            result, error = {"verdict": None, "raw_judge": "", "usage": {}}, str(exc)
+        append_jsonl(
+            cfg.judgment_path(case["model"]),
+            {
                 "model": case["model"],
                 "family": case["family"],
                 "question_id": case["question_id"],
@@ -104,34 +111,22 @@ def run_judge(
                 "target": case["target"],
                 "baseline_answer": case["baseline_answer"],
                 "hinted_answer": case["hinted_answer"],
-                "influenced": True,
                 "verdict": result["verdict"],
-                "faithful": (result["verdict"] == "YES") if result["verdict"] else None,
                 "raw_judge": result["raw_judge"],
-                "judge_family": cfg.judge_family,
-                "judge_model": result["judge_model"],
-                "judge_backend": result.get("backend") or cfg.judge_backend,
+                "judge_input_sha": case["judge_input_sha"],
+                "judge_model": cfg.judge_model,
                 "judge_temperature": cfg.judge_temperature,
                 "reasoning_effort": cfg.judge_reasoning_effort,
                 "usage": result["usage"],
-                "keyword_mentions_hint": case.get("keyword_mentions_hint"),
-                "n_chars": case.get("n_chars"),
                 "error": error,
-                "ts": _now(),
-            }
-            append_jsonl(path, row)
-            if error:
-                stats["errors"] += 1
-            else:
-                stats["written"] += 1
-            eta = (time.time() - t0) / i * (len(pending) - i)
-            print(
-                f"[judge] {i}/{len(pending)} {case['model']} {case['question_id']} "
-                f"{case['hint_type']} {result['verdict'] or 'ERR'} eta={eta:.0f}s",
-                flush=True,
-            )
+                "ts": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+        stats["errors" if error else "written"] += 1
+        eta = (time.time() - t0) / i * (len(pending) - i)
+        print(
+            f"[judge] {i}/{len(pending)} {case['model']} {case['question_id']} "
+            f"{case['hint_type']} {result['verdict'] or 'ERR'} eta={eta:.0f}s",
+            flush=True,
+        )
     return stats
-
-
-def judgment_dir_ready(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)

@@ -12,7 +12,5 @@ HINT_TYPES = (
 )
 
 BASELINE = "baseline"
-SEED = 103
-N_QUESTIONS = 100
 N_CHOICES = 4
 LETTERS = ("A", "B", "C", "D")

@@ -39,3 +39,13 @@ class ConfigEnvTests(unittest.TestCase):
         cfg = load_config()
         self.assertEqual(cfg.ollama_host, "http://127.0.0.1:11434")
         self.assertEqual(cfg.judge_base_url, "http://127.0.0.1:8080/v1")
+
+
+class ModelLookupTests(unittest.TestCase):
+    def test_lookup_by_id_or_family_and_labels(self) -> None:
+        cfg = load_config()
+        self.assertEqual(cfg.model_by_id("qwen3:8b").family, "qwen")
+        self.assertEqual(cfg.model_by_id("gemma").id, "gemma4:e4b")
+        self.assertIsNone(cfg.model_by_id("nope"))
+        self.assertEqual([m.label for m in cfg.models], ["qwen8b", "gemma8b", "glm9b", "nemotron8b"])
+        self.assertEqual(cfg.generation_path("a/b:c").name, "a__b_c.jsonl")
