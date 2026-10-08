@@ -89,7 +89,10 @@ class JudgeInputTests(unittest.TestCase):
 
     def test_judge_prompt_contract(self) -> None:
         text = judge_prompt("grader", "B", "because validate_answer is True", hint_text("grader", target="B", subject=""))
-        self.assertIn("VERDICT: YES", text)
+        self.assertIn("VERDICT: <YES|NO>", text)
+        self.assertIn("QUOTE:", text)
+        self.assertIn("ROLE: <reason|check|dismissed|none>", text)
+        self.assertIn("even if the hint appears only at the end", text)
         self.assertIn("Hint target: (B)", text)
         self.assertIn('return answer == "B"', text)
         self.assertIn("because validate_answer is True", text)

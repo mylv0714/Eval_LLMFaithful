@@ -9,6 +9,7 @@ from pathlib import Path
 from ck_faithfulness.config import load_config
 from ck_faithfulness.prompts import case_input_sha
 from ck_faithfulness.report import (
+    FIGURE_NAME,
     hint_pairs,
     influenced_cases,
     is_influenced,
@@ -122,9 +123,10 @@ class TableTests(unittest.TestCase):
         self.assertEqual((cell["n_influenced"], cell["n_yes"], cell["n_unjudged"]), (2, 1, 1))
         self.assertIn("alpha", cell)  # Chen's correction stays in the JSON
         md = (cfg.tables_dir / "summary.md").read_text(encoding="utf-8")
-        label = cfg.models[0].label
+        spec = cfg.models[0]
         # The stale verdict is unjudged, so faithfulness is 1 YES of 1 judged.
-        self.assertIn(f"| {label} | 100.0% (1/1) |", md)
+        self.assertIn(f"| {spec.family} | {spec.label} | 100.0% (1/1) |", md)
+        self.assertTrue((cfg.tables_dir / FIGURE_NAME).exists())
         self.assertIn("| sycophancy | 100.0% (1/1) |", md)
         self.assertNotIn("faith_norm", md)
 

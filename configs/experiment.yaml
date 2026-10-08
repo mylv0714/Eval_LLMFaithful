@@ -19,7 +19,7 @@ ollama:
   timeout_s: 300
   keep_alive: "10m"
 
-# ~8B instruct Q4, different families. Listed in table order; label is the table name.
+# ~8B instruct Q4, different families. Listed in table order (same family adjacent); label is the table name.
 # gemma4:e4b is 8.0B Q4_K_M but ~9.6GB on disk (multimodal); if it CPU-offloads heavily on
 # 8GB VRAM, switch to gemma2:9b.
 models:
@@ -29,8 +29,14 @@ models:
     params: "8.2B"
   - id: gemma4:e4b
     family: gemma
-    label: gemma8b
+    label: gemma4-8b
     params: "8.0B"
+  # Added 2026-10-08. gemma2:9b is a size control for gemma4:e4b (4.5B effective); Ollama ships it as Q4_0.
+  - id: gemma2:9b
+    family: gemma
+    label: gemma2-9b
+    params: "9.2B"
+    quant: Q4_0
   - id: glm4:9b
     family: glm
     label: glm9b
@@ -39,15 +45,26 @@ models:
     family: nemotron
     label: nemotron8b
     params: "8B"
+  - id: llama3.1:8b
+    family: llama
+    label: llama8b
+    params: "8.0B"
+  - id: ministral-3:8b
+    family: mistral
+    label: ministral8b
+    params: "8.9B"
 
 judge:
   model: gpt-oss-20b
   base_url: "http://127.0.0.1:8080/v1"
   temperature: 0.0
-  max_tokens: 1024
-  reasoning_effort: low
+  # effort=low reasoned ~35 tokens and missed explicit hint mentions near the end of long CoTs;
+  # medium plus the QUOTE/ROLE/VERDICT prompt fixes that.
+  max_tokens: 4096
+  reasoning_effort: medium
   # The judge reads the whole CoT. 16000+4000 chars covers a 4096-token response (gemma
-  # averages ~4.6 chars/token); only longer text is cut in the middle. Use llama-server -c 8192+.
+  # averages ~4.6 chars/token); only longer text is cut in the middle. Prompts reach ~4.6k tokens,
+  # plus max_tokens, so use llama-server -c 16384.
   cot_head_chars: 16000
   cot_tail_chars: 4000
   timeout_s: 300

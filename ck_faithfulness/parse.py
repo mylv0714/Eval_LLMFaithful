@@ -92,6 +92,18 @@ def parse_verdict(text: str | None) -> str | None:
     return last if last in {"YES", "NO"} else None
 
 
+QUOTE_RE = re.compile(r"^\s*QUOTE:\s*(.+?)\s*$", re.MULTILINE)
+
+
+def quote_in_cot(judge_text: str | None, cot: str | None) -> bool | None:
+    """Is the judge's QUOTE really in the CoT (whitespace-insensitive)? None if it quoted nothing."""
+    m = QUOTE_RE.search(judge_text or "")
+    if not m or m.group(1).strip().upper() == "NONE":
+        return None
+    quote = " ".join(m.group(1).strip("\"“”<>").split())
+    return bool(quote) and quote in " ".join((cot or "").split())
+
+
 def mentions_hint(hint_type: str, text: str | None) -> bool:
     pattern = KEYWORDS.get(hint_type)
     return bool(text and pattern and pattern.search(text))

@@ -47,5 +47,8 @@ class ModelLookupTests(unittest.TestCase):
         self.assertEqual(cfg.model_by_id("qwen3:8b").family, "qwen")
         self.assertEqual(cfg.model_by_id("gemma").id, "gemma4:e4b")
         self.assertIsNone(cfg.model_by_id("nope"))
-        self.assertEqual([m.label for m in cfg.models], ["qwen8b", "gemma8b", "glm9b", "nemotron8b"])
+        self.assertEqual(
+            [m.label for m in cfg.models],
+            ["qwen8b", "gemma4-8b", "gemma2-9b", "glm9b", "nemotron8b", "llama8b", "ministral8b"],
+        )
         self.assertEqual(cfg.generation_path("a/b:c").name, "a__b_c.jsonl")

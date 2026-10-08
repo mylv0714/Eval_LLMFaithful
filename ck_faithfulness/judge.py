@@ -10,7 +10,7 @@ import requests
 
 from ck_faithfulness.config import ExperimentConfig
 from ck_faithfulness.data import append_jsonl, load_generations, load_jsonl
-from ck_faithfulness.parse import parse_verdict
+from ck_faithfulness.parse import parse_verdict, quote_in_cot
 from ck_faithfulness.prompts import case_input_sha, judge_messages
 from ck_faithfulness.report import influenced_cases
 
@@ -113,6 +113,7 @@ def run_judge(
                 "hinted_answer": case["hinted_answer"],
                 "verdict": result["verdict"],
                 "raw_judge": result["raw_judge"],
+                "quote_in_cot": quote_in_cot(result["raw_judge"], case["raw_response"]),
                 "judge_input_sha": case["judge_input_sha"],
                 "judge_model": cfg.judge_model,
                 "judge_temperature": cfg.judge_temperature,
