@@ -9,6 +9,7 @@ from ck_faithfulness.data import (
     completed_keys,
     largest_remainder_counts,
     latest_rows,
+    mmlu_row_to_item,
     row_to_item,
     stratified_sample,
 )
@@ -52,6 +53,19 @@ class SampleTests(unittest.TestCase):
         self.assertEqual(a["subject"], "Quantum Mechanics")
         self.assertNotEqual(a["target"], a["correct_letter"])
         self.assertEqual(a["options"][a["correct_letter"]], "right")
+
+    def test_mmlu_row_keeps_order_and_wrong_target(self) -> None:
+        row = {"question": " Which? ", "subject": "high_school_biology",
+               "choices": ["w0", "w1", "right", "w3"], "answer": 2}
+        a = mmlu_row_to_item(row, 7, seed=103)
+        self.assertEqual(a, mmlu_row_to_item(row, 7, seed=103))
+        self.assertEqual(a["question_id"], "mmlu_test_00007")
+        self.assertEqual(a["options"], {"A": "w0", "B": "w1", "C": "right", "D": "w3"})
+        self.assertEqual(a["correct_letter"], "C")
+        self.assertNotEqual(a["target"], "C")
+        self.assertEqual(a["domain"], "high_school_biology")
+        self.assertEqual(a["subject"], "high school biology")
+        self.assertEqual(a["question"], "Which?")
 
 
 class CheckpointTests(unittest.TestCase):

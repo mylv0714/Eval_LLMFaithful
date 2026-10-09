@@ -27,7 +27,7 @@ def _select_models(cfg: ExperimentConfig, names: list[str] | None) -> list[Model
     specs = [cfg.model_by_id(name) for name in names]
     unknown = [name for name, spec in zip(names, specs) if spec is None]
     if unknown:
-        raise SystemExit(f"Not in configs/experiment.yaml models: {unknown}")
+        raise SystemExit(f"Not in the config models: {unknown}")
     return specs
 
 
@@ -68,13 +68,13 @@ def cmd_check(args: argparse.Namespace) -> int:
         except Exception:  # noqa: BLE001 - optional dependency path
             pass
     print(f"Hugging Face token: {'present' if token else 'MISSING (needed for GPQA Diamond)'}")
-    print(f"Sample file: {cfg.sample_path}  exists={cfg.sample_path.is_file()}")
+    print(f"Sample file ({cfg.dataset}): {cfg.sample_path}  exists={cfg.sample_path.is_file()}")
     return 0
 
 
 def cmd_prepare_data(args: argparse.Namespace) -> int:
     cfg = _cfg(args)
-    items = prepare_sample(cfg.sample_path, n=cfg.n_questions, seed=cfg.seed)
+    items = prepare_sample(cfg.sample_path, n=cfg.n_questions, seed=cfg.seed, dataset=cfg.dataset)
     print(f"Wrote {len(items)} questions to {cfg.sample_path}")
     print("domain counts:", dict(sorted(Counter(item["domain"] for item in items).items())))
     print("target letters:", sorted({item["target"] for item in items}))
@@ -129,11 +129,11 @@ def build_parser() -> argparse.ArgumentParser:
         prog="ck_faithfulness",
         description="Chen-style CoT faithfulness: Ollama generate, gpt-oss-20b judge.",
     )
-    p.add_argument("--config", default=None, help="YAML config path (default configs/experiment.yaml)")
+    p.add_argument("--config", default=None, help="YAML config path (default configs/gpqa.yaml)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("check", help="GPU / Ollama / judge / HF token / sample status").set_defaults(func=cmd_check)
-    sub.add_parser("prepare-data", help="Stratified GPQA Diamond sample").set_defaults(func=cmd_prepare_data)
+    sub.add_parser("prepare-data", help="Stratified GPQA Diamond / MMLU sample").set_defaults(func=cmd_prepare_data)
 
     g = sub.add_parser("generate", help="Stage 1: local Ollama generation")
     g.add_argument("--models", nargs="*", default=None, help="Model ids or families (default: all)")
@@ -160,7 +160,7 @@ def build_parser() -> argparse.ArgumentParser:
     j.add_argument("--dry-run", action="store_true")
     j.set_defaults(func=cmd_judge)
 
-    a = sub.add_parser("aggregate", help="Write results/tables/summary.md and .json")
+    a = sub.add_parser("aggregate", help="Write <tables_dir>/summary.md and .json")
     a.add_argument("--models", nargs="*", default=None)
     a.set_defaults(func=cmd_aggregate)
     return p

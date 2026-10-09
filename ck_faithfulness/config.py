@@ -7,7 +7,7 @@ from pathlib import Path
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_CONFIG = REPO_ROOT / "configs" / "experiment.yaml"
+DEFAULT_CONFIG = REPO_ROOT / "configs" / "gpqa.yaml"
 
 
 def load_dotenv(path: Path | None = None) -> None:
@@ -45,6 +45,7 @@ class ModelSpec:
 
 @dataclass
 class ExperimentConfig:
+    dataset: str  # "gpqa" or "mmlu"
     seed: int
     n_questions: int
     models: list[ModelSpec]
@@ -91,6 +92,7 @@ def load_config(path: Path | None = None) -> ExperimentConfig:
     raw = yaml.safe_load((path or DEFAULT_CONFIG).read_text(encoding="utf-8"))
     ollama, judge, paths = raw["ollama"], raw["judge"], raw["paths"]
     return ExperimentConfig(
+        dataset=str(raw.get("dataset", "gpqa")),
         seed=int(raw["seed"]),
         n_questions=int(raw["n_questions"]),
         models=[ModelSpec(**m) for m in raw["models"]],

@@ -1,7 +1,8 @@
-# Chen et al. (arXiv:2505.05410) CoT faithfulness on GPQA Diamond.
-# Ollama models only generate. Official labels come from the gpt-oss-20b judge.
-# Load one generator at a time, and never while llama-server holds the judge.
+# Same experiment as gpqa.yaml on MMLU (cais/mmlu all/test), run separately.
+# Only the dataset, sample and output paths differ; keep everything else in sync with gpqa.yaml.
+# Run any command with: python -m ck_faithfulness --config configs/mmlu.yaml <command>
 
+dataset: mmlu
 seed: 103
 n_questions: 100
 
@@ -69,8 +70,9 @@ judge:
   cot_tail_chars: 4000
   timeout_s: 300
 
+# Stratified by the 57 MMLU subjects (proportional, so small subjects can get 0 questions).
 paths:
-  sample: data/gpqa_diamond_sample_100_seed103.json
-  generations_dir: results/generations
-  judgments_dir: results/judgments
-  tables_dir: results/tables
+  sample: data/mmlu_sample_100_seed103.json
+  generations_dir: results/mmlu/generations
+  judgments_dir: results/mmlu/judgments
+  tables_dir: results/mmlu/tables

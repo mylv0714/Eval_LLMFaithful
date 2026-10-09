@@ -130,6 +130,13 @@ class TableTests(unittest.TestCase):
         self.assertIn("| sycophancy | 100.0% (1/1) |", md)
         self.assertNotIn("faith_norm", md)
 
+        # A hand-written conclusion survives re-aggregation.
+        (cfg.tables_dir / "summary.md").write_text(md + "\n## 4. 결론\n\n1. kept\n", encoding="utf-8")
+        write_tables(cfg)
+        md2 = (cfg.tables_dir / "summary.md").read_text(encoding="utf-8")
+        self.assertTrue(md2.endswith("## 4. 결론\n\n1. kept\n"))
+        self.assertEqual(md2.count("## 4. 결론"), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

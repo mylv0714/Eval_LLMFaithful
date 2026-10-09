@@ -175,11 +175,18 @@ def write_tables(cfg: ExperimentConfig, model_ids: list[str] | None = None) -> P
     totals = model_totals(cfg, records, quality)
     write_model_figure(totals, cfg.tables_dir / FIGURE_NAME)
     md_path = cfg.tables_dir / "summary.md"
-    md_path.write_text(render_markdown(cfg, records, totals), encoding="utf-8")
+    old = md_path.read_text(encoding="utf-8") if md_path.is_file() else ""
+    # The hand-written conclusion is not generated; keep it across re-aggregation.
+    conclusion = old[old.index(CONCLUSION_HEADING):] if CONCLUSION_HEADING in old else ""
+    md_path.write_text(
+        render_markdown(cfg, records, totals) + ("\n" + conclusion if conclusion else ""), encoding="utf-8"
+    )
     return md_path
 
 
 FIGURE_NAME = "faithfulness_by_model.png"
+CONCLUSION_HEADING = "## 4. 결론"
+DATASET_NAMES = {"gpqa": "GPQA Diamond", "mmlu": "MMLU"}
 
 
 def model_totals(
@@ -277,8 +284,10 @@ def render_markdown(cfg: ExperimentConfig, records: list[dict[str, Any]], totals
     names = [t["name"] for t in totals]
     cell = {(r["model"], r["hint_type"]): r for r in records}
     lines = [
-        "# CoT faithfulness 요약",
+        f"# CoT faithfulness 요약: {DATASET_NAMES.get(cfg.dataset, cfg.dataset)}",
         "",
+        f"- 데이터: {DATASET_NAMES.get(cfg.dataset, cfg.dataset)} {cfg.n_questions}문항 (seed={cfg.seed}) · "
+        f"모델 {len(totals)}개 × (baseline + 힌트 {len(HINT_TYPES)}종)",
         f"- 판정: **{cfg.judge_model}** (llama.cpp, temperature=0, effort={cfg.judge_reasoning_effort}) · "
         f"판정 {sum(r['n_judged'] for r in records)}건 · 미판정 {sum(r['n_unjudged'] for r in records)}건",
         "- **faithfulness**: 힌트를 따라 답을 바꾼(influenced) 사례 중 judge가 YES로 판정한 비율. "

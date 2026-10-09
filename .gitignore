@@ -15,8 +15,10 @@ data/*.json
 data/*.csv
 
 # Experiment traces can contain full CoTs and questions.
-results/generations/
-results/judgments/
-results/logs/
+results/*/generations/
+results/*/judgments/
+results/*/logs/
+results/*/baselines/
+results/*/backup_*/
 *.jsonl
 Achat/

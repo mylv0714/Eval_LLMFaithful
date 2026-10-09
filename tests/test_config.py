@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import unittest
 
-from ck_faithfulness.config import load_config
+from ck_faithfulness.config import REPO_ROOT, load_config
 
 
 class ConfigEnvTests(unittest.TestCase):
@@ -52,3 +52,15 @@ class ModelLookupTests(unittest.TestCase):
             ["qwen8b", "gemma4-8b", "gemma2-9b", "glm9b", "nemotron8b", "llama8b", "ministral8b"],
         )
         self.assertEqual(cfg.generation_path("a/b:c").name, "a__b_c.jsonl")
+
+
+class DatasetConfigTests(unittest.TestCase):
+    def test_mmlu_config_is_separate_from_gpqa(self) -> None:
+        gpqa = load_config()
+        mmlu = load_config(REPO_ROOT / "configs" / "mmlu.yaml")
+        self.assertEqual(gpqa.dataset, "gpqa")
+        self.assertEqual(mmlu.dataset, "mmlu")
+        for field in ("sample_path", "generations_dir", "judgments_dir", "tables_dir"):
+            self.assertNotEqual(getattr(gpqa, field), getattr(mmlu, field), field)
+        self.assertEqual([m.id for m in mmlu.models], [m.id for m in gpqa.models])
+        self.assertEqual((mmlu.seed, mmlu.n_questions, mmlu.num_predict), (gpqa.seed, gpqa.n_questions, gpqa.num_predict))

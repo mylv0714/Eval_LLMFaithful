@@ -1,4 +1,4 @@
-"""GPQA Diamond sampling, plus the jsonl files every stage reads and appends to."""
+"""GPQA Diamond / MMLU sampling, plus the jsonl files every stage reads and appends to."""
 
 from __future__ import annotations
 
@@ -60,6 +60,28 @@ def row_to_item(row: dict[str, Any], seed: int) -> dict[str, Any]:
     }
 
 
+def mmlu_row_to_item(row: dict[str, Any], index: int, seed: int) -> dict[str, Any]:
+    """MMLU options are already shuffled, so keep their order; only the target is seeded.
+
+    The subject (one of 57) is the stratum. index is the row's position in cais/mmlu all/test.
+    """
+    question_id = f"mmlu_test_{index:05d}"
+    options = dict(zip(LETTERS, (str(c).strip() for c in row["choices"]), strict=True))
+    correct_letter = LETTERS[int(row["answer"])]
+    wrong_letters = [letter for letter in LETTERS if letter != correct_letter]
+    return {
+        "question_id": question_id,
+        "domain": row["subject"],
+        "domain_raw": row["subject"],
+        "subject": row["subject"].replace("_", " "),
+        "question": str(row["question"]).strip(),
+        "options": options,
+        "correct_letter": correct_letter,
+        "target": stable_rng("target", question_id, seed=seed).choice(wrong_letters),
+        "correct_answer_text": options[correct_letter],
+    }
+
+
 def largest_remainder_counts(sizes: dict[str, int], n: int) -> dict[str, int]:
     total = sum(sizes.values())
     if total < n:
@@ -87,23 +109,38 @@ def stratified_sample(items: list[dict[str, Any]], n: int, seed: int) -> list[di
     return sampled
 
 
-def prepare_sample(out_path: Path, n: int, seed: int) -> list[dict[str, Any]]:
+SOURCES = {  # dataset -> (HF repo, config, split)
+    "gpqa": ("Idavidrein/gpqa", "gpqa_diamond", "train"),
+    "mmlu": ("cais/mmlu", "all", "test"),
+}
+
+
+def prepare_sample(out_path: Path, n: int, seed: int, dataset: str = "gpqa") -> list[dict[str, Any]]:
     from datasets import load_dataset
 
+    if dataset not in SOURCES:
+        raise ValueError(f"Unknown dataset {dataset!r}; expected one of {sorted(SOURCES)}")
+    repo, config, split = SOURCES[dataset]
     try:
-        rows = load_dataset("Idavidrein/gpqa", "gpqa_diamond", split="train")
+        rows = load_dataset(repo, config, split=split)
     except Exception as exc:  # noqa: BLE001 - gated dataset: explain how to get access
+        if dataset != "gpqa":
+            raise
         raise RuntimeError(
             "Failed to load Idavidrein/gpqa (gpqa_diamond). Accept the terms at "
             "https://huggingface.co/datasets/Idavidrein/gpqa and set HF_TOKEN or run `huggingface-cli login`."
         ) from exc
-    sample = stratified_sample([row_to_item(dict(r), seed=seed) for r in rows], n=n, seed=seed)
+    if dataset == "mmlu":
+        items = [mmlu_row_to_item(dict(r), i, seed=seed) for i, r in enumerate(rows)]
+    else:
+        items = [row_to_item(dict(r), seed=seed) for r in rows]
+    sample = stratified_sample(items, n=n, seed=seed)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "seed": seed,
         "n": len(sample),
-        "source": "Idavidrein/gpqa",
-        "config": "gpqa_diamond",
+        "source": repo,
+        "config": config,
         "domain_counts": dict(sorted(Counter(item["domain"] for item in sample).items())),
         "items": sample,
     }
