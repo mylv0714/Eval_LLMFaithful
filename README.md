@@ -7,6 +7,7 @@ Chen et al. ([arXiv:2505.05410](https://arxiv.org/abs/2505.05410))의 힌트 6�
 - **최종 요약 (MMLU + GPQA)**: [results/summary.md](results/summary.md)
 - MMLU: [요약](results/mmlu/tables/summary.md) · [상세 분석](docs/mmlu_analysis.md)
 - GPQA Diamond: [요약](results/gpqa/tables/summary.md) · [상세 분석](docs/gpqa_analysis.md)
+- 추가 실험 (qwen3.5 크기 비교, gemma4 MMLU-500·ARC-Easy 재현): [상세 분석](docs/followup_analysis.md)
 
 ## 실험 설정
 
