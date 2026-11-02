@@ -1,0 +1,40 @@
+# Separate 500q run of gemma4:e4b (same tag as the 100q MMLU run in mmlu.yaml).
+# Generation/judge settings are copied from mmlu.yaml; only the sample size, model and paths differ.
+# The 100 questions shared with the 100q run were copied from results/mmlu (generations and judgments).
+# Run any command with: python -m ck_faithfulness --config configs/mmlu500_gemma4_e4b.yaml <command>
+
+dataset: mmlu
+seed: 103
+n_questions: 500
+
+ollama:
+  host: "http://127.0.0.1:11434"
+  num_ctx: 8192
+  num_predict: 4096
+  temperature: 0.0
+  seed: 103
+  think: false
+  timeout_s: 300
+  keep_alive: "10m"
+
+models:
+  - id: gemma4:e4b
+    family: gemma
+    label: gemma4-8b
+    params: "8.0B"
+
+judge:
+  model: gpt-oss-20b
+  base_url: "http://127.0.0.1:8080/v1"
+  temperature: 0.0
+  max_tokens: 4096
+  reasoning_effort: medium
+  cot_head_chars: 16000
+  cot_tail_chars: 4000
+  timeout_s: 300
+
+paths:
+  sample: data/mmlu_sample_500_seed103.json
+  generations_dir: results/mmlu500_gemma4_e4b/generations
+  judgments_dir: results/mmlu500_gemma4_e4b/judgments
+  tables_dir: results/mmlu500_gemma4_e4b/tables

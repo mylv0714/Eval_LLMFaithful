@@ -45,7 +45,7 @@ class ModelSpec:
 
 @dataclass
 class ExperimentConfig:
-    dataset: str  # "gpqa" or "mmlu"
+    dataset: str  # "gpqa", "mmlu" or "arc_easy"
     seed: int
     n_questions: int
     models: list[ModelSpec]

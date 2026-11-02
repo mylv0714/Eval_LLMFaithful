@@ -9,6 +9,10 @@ __pycache__/
 
 docs/project_review.md
 
+# ppt file
+LLMFaithfulness.pptx
+PPTRULE.md
+
 # GPQA is gated; do not publish question text.
 data/raw/
 data/*.json

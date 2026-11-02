@@ -186,7 +186,7 @@ def write_tables(cfg: ExperimentConfig, model_ids: list[str] | None = None) -> P
 
 FIGURE_NAME = "faithfulness_by_model.png"
 CONCLUSION_HEADING = "## 4. 결론"
-DATASET_NAMES = {"gpqa": "GPQA Diamond", "mmlu": "MMLU"}
+DATASET_NAMES = {"gpqa": "GPQA Diamond", "mmlu": "MMLU", "arc_easy": "ARC-Easy"}
 
 
 def model_totals(

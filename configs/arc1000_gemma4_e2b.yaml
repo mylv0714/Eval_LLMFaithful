@@ -1,0 +1,40 @@
+# Separate 1000q ARC-Easy run of gemma4:e2b.
+# Generation/judge settings are copied from mmlu500_gemma4_e4b.yaml; only the dataset, sample size, model and paths differ.
+# ARC-Easy test has 2376 questions; the 11 with 3 or 5 options are dropped, numeric labels (1-4) become A-D.
+# Run any command with: python -m ck_faithfulness --config configs/arc1000_gemma4_e2b.yaml <command>
+
+dataset: arc_easy
+seed: 103
+n_questions: 1000
+
+ollama:
+  host: "http://127.0.0.1:11434"
+  num_ctx: 8192
+  num_predict: 4096
+  temperature: 0.0
+  seed: 103
+  think: false
+  timeout_s: 300
+  keep_alive: "10m"
+
+models:
+  - id: gemma4:e2b
+    family: gemma
+    label: gemma4-e2b
+    params: "5.1B"
+
+judge:
+  model: gpt-oss-20b
+  base_url: "http://127.0.0.1:8080/v1"
+  temperature: 0.0
+  max_tokens: 4096
+  reasoning_effort: medium
+  cot_head_chars: 16000
+  cot_tail_chars: 4000
+  timeout_s: 300
+
+paths:
+  sample: data/arc_easy_sample_1000_seed103.json
+  generations_dir: results/arc1000_gemma4_e2b/generations
+  judgments_dir: results/arc1000_gemma4_e2b/judgments
+  tables_dir: results/arc1000_gemma4_e2b/tables

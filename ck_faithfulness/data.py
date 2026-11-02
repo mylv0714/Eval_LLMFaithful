@@ -1,4 +1,4 @@
-"""GPQA Diamond / MMLU sampling, plus the jsonl files every stage reads and appends to."""
+"""GPQA Diamond / MMLU / ARC-Easy sampling, plus the jsonl files every stage reads and appends to."""
 
 from __future__ import annotations
 
@@ -82,6 +82,31 @@ def mmlu_row_to_item(row: dict[str, Any], index: int, seed: int) -> dict[str, An
     }
 
 
+def arc_row_to_item(row: dict[str, Any], seed: int) -> dict[str, Any] | None:
+    """ARC keeps its option order; labels (some are 1-4) become A-D. Non-4-option rows return None.
+
+    ARC has no subject field, so every item is one "science" stratum (a plain random sample).
+    """
+    labels, texts = row["choices"]["label"], row["choices"]["text"]
+    if len(labels) != len(LETTERS):
+        return None
+    question_id = str(row["id"])
+    options = dict(zip(LETTERS, (str(t).strip() for t in texts), strict=True))
+    correct_letter = LETTERS[labels.index(row["answerKey"])]
+    wrong_letters = [letter for letter in LETTERS if letter != correct_letter]
+    return {
+        "question_id": question_id,
+        "domain": "science",
+        "domain_raw": question_id.split("_")[0],
+        "subject": "science",
+        "question": str(row["question"]).strip(),
+        "options": options,
+        "correct_letter": correct_letter,
+        "target": stable_rng("target", question_id, seed=seed).choice(wrong_letters),
+        "correct_answer_text": options[correct_letter],
+    }
+
+
 def largest_remainder_counts(sizes: dict[str, int], n: int) -> dict[str, int]:
     total = sum(sizes.values())
     if total < n:
@@ -112,6 +137,7 @@ def stratified_sample(items: list[dict[str, Any]], n: int, seed: int) -> list[di
 SOURCES = {  # dataset -> (HF repo, config, split)
     "gpqa": ("Idavidrein/gpqa", "gpqa_diamond", "train"),
     "mmlu": ("cais/mmlu", "all", "test"),
+    "arc_easy": ("allenai/ai2_arc", "ARC-Easy", "test"),
 }
 
 
@@ -132,6 +158,8 @@ def prepare_sample(out_path: Path, n: int, seed: int, dataset: str = "gpqa") -> 
         ) from exc
     if dataset == "mmlu":
         items = [mmlu_row_to_item(dict(r), i, seed=seed) for i, r in enumerate(rows)]
+    elif dataset == "arc_easy":
+        items = [item for r in rows if (item := arc_row_to_item(dict(r), seed=seed))]
     else:
         items = [row_to_item(dict(r), seed=seed) for r in rows]
     sample = stratified_sample(items, n=n, seed=seed)
